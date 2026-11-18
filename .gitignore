@@ -1,0 +1,25 @@
+# Local environment and secrets
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+
+# Node / Next.js
+frontend/node_modules/
+frontend/.next/
+frontend/out/
+frontend/.vercel/
+npm-debug.log*
+
+# Go build artifacts
+backend/bin/
+backend/dist/
+*.exe
+*.test
+
+# Editors and operating system files
+.idea/
+.vscode/
+.DS_Store
+Thumbs.db
