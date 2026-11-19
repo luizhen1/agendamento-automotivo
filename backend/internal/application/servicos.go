@@ -26,3 +26,10 @@ func (s *ServicoService) Criar(ctx context.Context, servico domain.Servico) (dom
 	}
 	return servico, nil
 }
+
+func (s *ServicoService) Excluir(ctx context.Context, id uint) error {
+	if id == 0 {
+		return ErrDadosInvalidos
+	}
+	return s.repo.Excluir(ctx, id)
+}

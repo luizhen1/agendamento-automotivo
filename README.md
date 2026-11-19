@@ -50,10 +50,12 @@ Acesse `http://localhost:3000`. Por padrão, o painel consome a API em `http://l
 
 - `GET, POST /clientes`
 - `GET, POST /servicos`
+- `DELETE /servicos/{id}`
 - `GET, POST /agendamentos`
 - `PATCH, DELETE /agendamentos/{id}`
 
 Agendamentos em horários já ocupados retornam HTTP 409. Agendamentos cancelados não bloqueiam novos horários. O CORS permite chamadas do front-end em `http://localhost:3000`.
+Serviços vinculados a agendamentos não podem ser excluídos; a API retorna HTTP 409 para preservar a integridade referencial.
 
 ## Encerrar
 

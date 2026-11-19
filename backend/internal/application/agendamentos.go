@@ -29,8 +29,8 @@ func (s *AgendamentoService) Criar(ctx context.Context, clienteID, servicoID uin
 	return item, nil
 }
 
-func (s *AgendamentoService) Atualizar(ctx context.Context, id uint, status *string, dataHora *string) (domain.Agendamento, error) {
-	if id == 0 || (status == nil && dataHora == nil) {
+func (s *AgendamentoService) Atualizar(ctx context.Context, id uint, status *string, dataHora *string, observacoes *string) (domain.Agendamento, error) {
+	if id == 0 || (status == nil && dataHora == nil && observacoes == nil) {
 		return domain.Agendamento{}, ErrDadosInvalidos
 	}
 	changes := domain.AtualizacaoAgendamento{}
@@ -47,6 +47,10 @@ func (s *AgendamentoService) Atualizar(ctx context.Context, id uint, status *str
 			return domain.Agendamento{}, ErrDadosInvalidos
 		}
 		changes.DataHora = &value
+	}
+	if observacoes != nil {
+		value := strings.TrimSpace(*observacoes)
+		changes.Observacoes = &value
 	}
 	return s.repo.Atualizar(ctx, id, changes)
 }

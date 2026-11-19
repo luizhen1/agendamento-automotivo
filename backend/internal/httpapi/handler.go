@@ -27,6 +27,7 @@ func (h *Handler) Router() http.Handler {
 	mux := http.NewServeMux()
 	mux.HandleFunc("/clientes", h.clientesHandler)
 	mux.HandleFunc("/servicos", h.servicosHandler)
+	mux.HandleFunc("/servicos/", h.servicoIDHandler)
 	mux.HandleFunc("/agendamentos", h.agendamentosHandler)
 	mux.HandleFunc("/agendamentos/", h.agendamentoIDHandler)
 	return cors(mux)
@@ -72,8 +73,9 @@ type agendamentoRequest struct {
 }
 
 type agendamentoPatchRequest struct {
-	Status   *string `json:"status"`
-	DataHora *string `json:"data_hora"`
+	Status      *string `json:"status"`
+	DataHora    *string `json:"data_hora"`
+	Observacoes *string `json:"observacoes"`
 }
 
 type agendamentoResponse struct {
@@ -146,6 +148,24 @@ func (h *Handler) servicosHandler(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+func (h *Handler) servicoIDHandler(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodDelete {
+		methodNotAllowed(w)
+		return
+	}
+	path := strings.Trim(strings.TrimPrefix(r.URL.Path, "/servicos/"), "/")
+	id64, err := strconv.ParseUint(path, 10, 64)
+	if err != nil || id64 == 0 {
+		writeError(w, http.StatusBadRequest, "id de serviço inválido")
+		return
+	}
+	if err := h.servicos.Excluir(r.Context(), uint(id64)); err != nil {
+		writeApplicationError(w, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]string{"mensagem": "Serviço excluído com sucesso"})
+}
+
 func (h *Handler) agendamentosHandler(w http.ResponseWriter, r *http.Request) {
 	switch r.Method {
 	case http.MethodGet:
@@ -189,7 +209,7 @@ func (h *Handler) agendamentoIDHandler(w http.ResponseWriter, r *http.Request) {
 		if !decode(w, r, &input) {
 			return
 		}
-		item, err := h.agendamentos.Atualizar(r.Context(), id, input.Status, input.DataHora)
+		item, err := h.agendamentos.Atualizar(r.Context(), id, input.Status, input.DataHora, input.Observacoes)
 		if err != nil {
 			writeApplicationError(w, err)
 			return
@@ -237,6 +257,8 @@ func writeApplicationError(w http.ResponseWriter, err error) {
 		writeError(w, http.StatusNotFound, "agendamento não encontrado")
 	case errors.Is(err, application.ErrDadosInvalidos):
 		writeError(w, http.StatusBadRequest, "dados obrigatórios inválidos")
+	case errors.Is(err, application.ErrRegistroEmUso):
+		writeError(w, http.StatusConflict, "não é possível excluir o serviço porque há agendamentos vinculados")
 	default:
 		writeInternalError(w, err)
 	}

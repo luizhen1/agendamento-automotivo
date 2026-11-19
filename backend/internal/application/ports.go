@@ -14,6 +14,7 @@ type ClienteRepository interface {
 type ServicoRepository interface {
 	Listar(context.Context) ([]domain.Servico, error)
 	Criar(context.Context, *domain.Servico) error
+	Excluir(context.Context, uint) error
 }
 
 type AgendamentoRepository interface {

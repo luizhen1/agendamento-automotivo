@@ -27,6 +27,7 @@ export default function Home() {
   const [agendamentos, setAgendamentos] = useState<Agendamento[]>([]);
   const [feedback, setFeedback] = useState<Feedback | null>(null);
   const [busy, setBusy] = useState(false);
+  const [editing, setEditing] = useState<Agendamento | null>(null);
 
   const load = useCallback(async () => {
     try {
@@ -53,11 +54,49 @@ export default function Home() {
     try { await request(`/agendamentos/${id}`, { method: "PATCH", body: JSON.stringify(payload) }); setFeedback({ kind: "success", message: success }); await load(); }
     catch (error) { setFeedback({ kind: "error", message: error instanceof Error ? error.message : "Falha ao atualizar agendamento." }); }
   }
+
+  async function saveEdit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!editing) return;
+    const values = Object.fromEntries(new FormData(event.currentTarget).entries());
+    setBusy(true);
+    setFeedback(null);
+    try {
+      await request(`/agendamentos/${editing.id}`, {
+        method: "PATCH",
+        body: JSON.stringify({
+          status: values.status,
+          data_hora: values.data_hora,
+          observacoes: values.observacoes,
+        }),
+      });
+      setEditing(null);
+      setFeedback({ kind: "success", message: "Agendamento atualizado com sucesso." });
+      await load();
+    } catch (error) {
+      setFeedback({ kind: "error", message: error instanceof Error ? error.message : "Falha ao atualizar agendamento." });
+    } finally {
+      setBusy(false);
+    }
+  }
+
   async function remove(id: number) {
     if (!window.confirm("Deseja excluir este agendamento?")) return;
     setFeedback(null);
     try { await request(`/agendamentos/${id}`, { method: "DELETE" }); setFeedback({ kind: "success", message: "Agendamento excluído." }); await load(); }
     catch (error) { setFeedback({ kind: "error", message: error instanceof Error ? error.message : "Falha ao excluir agendamento." }); }
+  }
+
+  async function removeServico(servico: Servico) {
+    if (!window.confirm(`Excluir o serviço "${servico.nome}"?`)) return;
+    setFeedback(null);
+    try {
+      await request(`/servicos/${servico.id}`, { method: "DELETE" });
+      setFeedback({ kind: "success", message: "Serviço excluído." });
+      await load();
+    } catch (error) {
+      setFeedback({ kind: "error", message: error instanceof Error ? error.message : "Falha ao excluir serviço." });
+    }
   }
 
   return <main className={styles.shell}>
@@ -93,18 +132,30 @@ export default function Home() {
     <section className={styles.section}>
       <div className={styles.sectionHeading}><div><div className={styles.eyebrow}>UC02 · UC04 · UC05</div><h2>Agenda de serviços</h2><p>Acompanhe os próximos atendimentos e atualize cada serviço.</p></div><div className={styles.count}>{agendamentos.length} {agendamentos.length === 1 ? "agendamento" : "agendamentos"}</div></div>
       <div className={styles.tableWrap}><table><thead><tr><th>ID</th><th>Data e hora</th><th>Cliente / veículo</th><th>Serviço</th><th>Valor</th><th>Status</th><th>Ações</th></tr></thead><tbody>
-        {agendamentos.map(a => <tr key={a.id}><td className={styles.id}>#{a.id}</td><td>{date(a.data_hora)}</td><td><strong>{a.cliente?.nome ?? "—"}</strong><small>{a.cliente?.veiculo_modelo} · {a.cliente?.placa}</small></td><td>{a.servico?.nome ?? "—"}</td><td>{money(a.servico?.valor ?? 0)}</td><td><span className={`${styles.badge} ${a.status === "CONCLUIDO" ? styles.done : a.status === "CANCELADO" ? styles.cancelled : styles.scheduled}`}><i />{a.status}</span></td><td><div className={styles.actions}>{a.status === "AGENDADO" && <button className={styles.complete} onClick={() => update(a.id, { status: "CONCLUIDO" }, "Agendamento concluído.")}>Concluir (UC04)</button>}<button className={styles.delete} onClick={() => remove(a.id)}>Excluir (UC05)</button></div></td></tr>)}
+        {agendamentos.map(a => <tr key={a.id}><td className={styles.id}>#{a.id}</td><td>{date(a.data_hora)}</td><td><strong>{a.cliente?.nome ?? "—"}</strong><small>{a.cliente?.veiculo_modelo} · {a.cliente?.placa}</small></td><td>{a.servico?.nome ?? "—"}</td><td>{money(a.servico?.valor ?? 0)}</td><td><span className={`${styles.badge} ${a.status === "CONCLUIDO" ? styles.done : a.status === "CANCELADO" ? styles.cancelled : styles.scheduled}`}><i />{a.status}</span></td><td><div className={styles.actions}><button className={styles.edit} onClick={() => setEditing(a)}>Editar (RF06)</button>{a.status === "AGENDADO" && <button className={styles.complete} onClick={() => update(a.id, { status: "CONCLUIDO" }, "Agendamento concluído.")}>Concluir</button>}<button className={styles.delete} onClick={() => remove(a.id)}>Excluir (RF07)</button></div></td></tr>)}
         {agendamentos.length === 0 && <tr><td colSpan={7} className={styles.empty}>Nenhum agendamento cadastrado. Use o formulário acima para começar.</td></tr>}
       </tbody></table></div>
     </section>
 
     <section className={styles.section}>
       <div className={styles.sectionHeading}><div><div className={styles.eyebrow}>UC02 · CATÁLOGO</div><h2>Serviços disponíveis</h2><p>Opções cadastradas para atendimento.</p></div><div className={styles.count}>{servicos.length} serviços</div></div>
-      <div className={styles.tableWrap}><table><thead><tr><th>ID</th><th>Nome</th><th>Descrição</th><th>Duração</th><th>Valor</th></tr></thead><tbody>
-        {servicos.map(s => <tr key={s.id}><td className={styles.id}>#{s.id}</td><td><strong>{s.nome}</strong></td><td>{s.descricao || "—"}</td><td>{s.duracao_minutos} min</td><td className={styles.price}>{money(s.valor)}</td></tr>)}
-        {servicos.length === 0 && <tr><td colSpan={5} className={styles.empty}>Nenhum serviço disponível.</td></tr>}
+      <div className={styles.tableWrap}><table><thead><tr><th>ID</th><th>Nome</th><th>Descrição</th><th>Duração</th><th>Valor</th><th>Ações</th></tr></thead><tbody>
+        {servicos.map(s => <tr key={s.id}><td className={styles.id}>#{s.id}</td><td><strong>{s.nome}</strong></td><td>{s.descricao || "—"}</td><td>{s.duracao_minutos} min</td><td className={styles.price}>{money(s.valor)}</td><td><div className={styles.actions}><button className={styles.delete} onClick={() => removeServico(s)}>Excluir serviço (RF07)</button></div></td></tr>)}
+        {servicos.length === 0 && <tr><td colSpan={6} className={styles.empty}>Nenhum serviço disponível.</td></tr>}
       </tbody></table></div>
     </section>
+
+    {editing && <div className={styles.modalBackdrop} onMouseDown={(event) => { if (event.target === event.currentTarget) setEditing(null); }}>
+      <section className={styles.modal} role="dialog" aria-modal="true" aria-labelledby="edit-title">
+        <div className={styles.modalHeader}><div><div className={styles.eyebrow}>RF06 · ATUALIZAÇÃO</div><h2 id="edit-title">Editar agendamento #{editing.id}</h2><p>{editing.cliente?.nome} · {editing.servico?.nome}</p></div><button type="button" className={styles.modalClose} aria-label="Fechar edição" onClick={() => setEditing(null)}>×</button></div>
+        <form className={styles.form} onSubmit={saveEdit}>
+          <label>Status<select name="status" defaultValue={editing.status}><option value="AGENDADO">AGENDADO</option><option value="CONCLUIDO">CONCLUIDO</option><option value="CANCELADO">CANCELADO</option></select></label>
+          <label>Data e hora<input name="data_hora" type="datetime-local" required defaultValue={editing.data_hora.slice(0, 16)} /></label>
+          <label>Observações técnicas<textarea name="observacoes" maxLength={255} rows={4} defaultValue={editing.observacoes ?? ""} placeholder="Adicione ou atualize as observações" /></label>
+          <div className={styles.modalActions}><button type="button" className={styles.cancelEdit} onClick={() => setEditing(null)}>Cancelar</button><button className={styles.primary} disabled={busy}>Salvar alterações</button></div>
+        </form>
+      </section>
+    </div>}
     <footer className={styles.footer}>Sistema de Agendamento Automotivo <span>·</span> Go + GORM + MySQL <span>·</span> Next.js</footer>
   </main>;
 }

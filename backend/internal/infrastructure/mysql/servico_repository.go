@@ -2,8 +2,11 @@ package mysql
 
 import (
 	"context"
+	"errors"
 
+	"agendamento-automotivo/backend/internal/application"
 	"agendamento-automotivo/backend/internal/domain"
+	drivermysql "github.com/go-sql-driver/mysql"
 	"gorm.io/gorm"
 )
 
@@ -31,3 +34,20 @@ func (r *ServicoRepository) Criar(ctx context.Context, item *domain.Servico) err
 	*item = servicoToDomain(row)
 	return nil
 }
+
+func (r *ServicoRepository) Excluir(ctx context.Context, id uint) error {
+	result := r.db.WithContext(ctx).Delete(&servicoModel{}, id)
+	if result.Error != nil {
+		var mysqlErr *drivermysql.MySQLError
+		if errors.As(result.Error, &mysqlErr) && mysqlErr.Number == 1451 {
+			return application.ErrRegistroEmUso
+		}
+		return result.Error
+	}
+	if result.RowsAffected == 0 {
+		return application.ErrNaoEncontrado
+	}
+	return nil
+}
+
+var _ application.ServicoRepository = (*ServicoRepository)(nil)

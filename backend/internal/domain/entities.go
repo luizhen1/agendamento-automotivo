@@ -45,6 +45,7 @@ type Agendamento struct {
 }
 
 type AtualizacaoAgendamento struct {
-	Status   *StatusAgendamento
-	DataHora *string
+	Status      *StatusAgendamento
+	DataHora    *string
+	Observacoes *string
 }

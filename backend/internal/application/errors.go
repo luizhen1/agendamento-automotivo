@@ -2,6 +2,8 @@ package application
 
 import "errors"
 
+var ErrRegistroEmUso = errors.New("registro vinculado a outros dados")
+
 var (
 	ErrNaoEncontrado   = errors.New("registro não encontrado")
 	ErrConflitoHorario = errors.New("Conflito de horário: já existe um veículo agendado para esta data e hora.")
